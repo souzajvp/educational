@@ -1,5 +1,72 @@
 ---
-title: "R Notebook"
+title: "Análise de sobrevivência em R"
 output: html_notebook
+author: "João Vítor Souza"
 ---
+
+Pacotes
+```{r}
+# Caso necessário, instale os pacotes.
+# install.packages(c("survival","survminer", "gtsummary", "dplyr", "ggplot2"))
+
+# Pacotes essenciais 
+library(survival); library(survminer)
+# Pacotes úteis
+library(gtsummary); library(ggplot2); library(dplyr)
+```
+
+**Variáveis de interesse:**
+
+* `time`, que representa o tempo (em dias) entre o diagnóstico e o último registro do paciente disponível;
+* `status`, que representa se o paciente estava vivo ou morto no último registro, sendo: 1 = vivo e 2 = morto;
+* `sex`, que representa o sexo do paciente, sendo: 1 = masculino e 2 = feminino.
+```{r}
+head(lung)
+```
+
+## Análise descritiva
+
+```{r}
+lung %>% mutate(Status=factor(status, levels=c(1,2), labels=c("Censored", "Dead"))) %>%
+  ggplot(aes(x = time, fill = Status)) + 
+  geom_histogram(bins = 25, alpha = 0.6, position = "identity") + 
+  labs(x = "Days survived", y = "N. of patients")
+```
+
+```{r}
+# pacotes
+library(gtsummary)
+
+var_names <- list(age~"Idade",
+                  time~"Tempo até o evento",
+                  sex~"Sexo")
+
+lung %>% filter(status==2) %>% 
+  mutate(sex=factor(sex, levels=c(1,2),
+                    labels=c("Masculino","Feminino"))) %>% 
+  select(age, sex, time) %>% tbl_summary(by=sex, label=var_names) %>% 
+  add_p() %>% bold_p() %>% bold_labels()
+
+```
+
+Mediana de sobrevivência dos pacientes que morreram
+```{r}
+median(lung[(lung$status ==2),]$time)
+```
+## Estimativa de Kaplan-Meier
+```{r}
+lung$sex1 <- factor(lung$sex, levels=c(1,2), labels=c("Masculino", "Feminino"))
+fit <- survfit(Surv(time, status) ~ sex1, data = lung)
+print(fit)
+```
+## Curva de sobrevivência
+```{r}
+
+surv.sex <- ggsurvplot(fit=fit, data = lung, 
+                       linetype="strata", surv.median.line = "hv",
+                       conf.int = TRUE, pval=TRUE)
+
+plot.new() 
+print(surv.sex,newpage = FALSE)
+```
 
